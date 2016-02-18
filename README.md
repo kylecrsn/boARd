@@ -25,7 +25,6 @@ Download: https://play.google.com/store/apps/details?id=com.unity3d.genericremot
 * First, connect your phone to your computer. Make sure the transfer mode is either MTP or PTP (not just charging)
 * Next, open the app to the initial waiting screen.
 * Finally, you can now launch Unity on your computer. To test if its working, try pressing the play button and see if the scene is mirrored onto your device. If not, you'll need to play around with it, there's lots of posts online about it
-* 
 ***
 
 ## Resources
