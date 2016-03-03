@@ -1,0 +1,55 @@
+Initialize engine version: 5.3.1f1 (cc9cbbcc37b4)
+GfxDevice: creating device client; threaded=1
+Direct3D:
+    Version:  Direct3D 11.0 [level 11.0]
+    Renderer: NVIDIA GeForce GTX 670 (ID=0x1189)
+    Vendor:   NVIDIA
+    VRAM:     4026 MB
+Begin MonoManager ReloadAssembly
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.dll (this message is harmless)
+Loading D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.dll into Unity Child Domain
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\Assembly-CSharp.dll (this message is harmless)
+Loading D:\Code\Repos\boARd\boARd_Data\Managed\Assembly-CSharp.dll into Unity Child Domain
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.UI.dll (this message is harmless)
+Loading D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.UI.dll into Unity Child Domain
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking.dll (this message is harmless)
+Loading D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking.dll into Unity Child Domain
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll (this message is harmless)
+Loading D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll into Unity Child Domain
+- Completed reload, in  0.127 seconds
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.Core.dll (this message is harmless)
+Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.dll (this message is harmless)
+desktop: 1920x1080 60Hz; virtual: 5760x1080 at -1920,0
+<RI> Initializing input.
+<RI> Input initialized.
+<RI> Initialized touch support.
+UnloadTime: 0.526532 ms
+Setting up 2 worker threads for Enlighten.
+  Thread -> id: 630 -> priority: 1 
+  Thread -> id: 4ed4 -> priority: 1 
+Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 4.975644 ms
+
+Unloading 5 unused Assets to reduce memory usage. Loaded Objects now: 560.
+Total: 0.194538 ms (FindLiveObjects: 0.036067 ms CreateObjectMapping: 0.019879 ms MarkObjects: 0.123823 ms  DeleteObjects: 0.004543 ms)
+
+Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 0.199650 ms
+
+Unloading 3 unused Assets to reduce memory usage. Loaded Objects now: 609.
+Total: 0.208454 ms (FindLiveObjects: 0.012779 ms CreateObjectMapping: 0.013631 ms MarkObjects: 0.177782 ms  DeleteObjects: 0.003975 ms)
+
+Trackable stones lost
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+Trackable stones lost
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+UnloadTime: 0.838929 ms
+
+Unloading 7 unused Assets to reduce memory usage. Loaded Objects now: 596.
+Total: 0.218394 ms (FindLiveObjects: 0.013631 ms CreateObjectMapping: 0.012211 ms MarkObjects: 0.181190 ms  DeleteObjects: 0.011075 ms)
+
