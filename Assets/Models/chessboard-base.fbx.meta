@@ -331,7 +331,7 @@ ModelImporter:
     4300126: b1
     4300128: a1
   materials:
-    importMaterials: 1
+    importMaterials: 0
     materialName: 0
     materialSearch: 1
   animations:
