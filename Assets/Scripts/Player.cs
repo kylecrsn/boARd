@@ -8,7 +8,30 @@ public class Player : NetworkBehaviour
     [SyncVar]
     private GameObject tileHit;
 
-    private const float _dragSpeed = 0.09f;
+    public const float _dragSpeed = 0.09f;
+
+    public void Start()
+    {
+        if (!isLocalPlayer)
+            return;
+
+        LocalStateInitialization();
+    }
+    public void LocalStateInitialization()
+    {
+        //Erase the original tiles in the chessboard and set the new ones to be children of the image target
+        var oldTiles = GameObject.FindGameObjectWithTag("Chessboard").GetChildren();
+        var newTiles = GameObject.FindGameObjectsWithTag("Tile");
+        int i;
+
+        for (i = 0; i < 64; i++)
+        {
+            Destroy(oldTiles[i]);
+            newTiles[i].GetComponent<Transform>().parent = GameObject.Find("ImageTarget").GetComponent<Transform>();
+        }
+
+        Destroy(GameObject.Find("ChessboardReference"));
+    }
 
     void Update()
     {
@@ -31,24 +54,32 @@ public class Player : NetworkBehaviour
             case TouchPhase.Began:
                 if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
                 {
-                    checkerHit = hit.collider.gameObject;
+                    checkerHit = hit.transform.gameObject;
                     CmdAssignObjectAuthority(checkerHit.GetComponent<NetworkIdentity>().netId);
-                    CmdPickPieceUp(checkerHit, tileHit);
+                    if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+                    {
+                        tileHit = hit.collider.gameObject;
+                        CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
+                        CmdPickPieceUp(checkerHit, tileHit);
+                    }
+                    else
+                        tileHit = null;
                 }
                 else
                     checkerHit = null;
                 break;
             case TouchPhase.Moved:
-                if (checkerHit != null && hasAuthority == true)
+                if (checkerHit != null && tileHit != null && hasAuthority == true)
                 {
-                    CmdTargetSquare(checkerHit, tileHit);
                     CmdDragPiece(checkerHit, Input.GetTouch(0).deltaPosition);
+                    CmdTargetSquare(checkerHit, tileHit);
                 }
                 break;
             case TouchPhase.Ended:
-                if (checkerHit != null && hasAuthority == true)
+                if (checkerHit != null && tileHit != null && hasAuthority == true)
                 {
                     CmdPutPieceDown(checkerHit, tileHit);
+                    CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
                     CmdRemoveObjectAuthority(checkerHit.GetComponent<NetworkIdentity>().netId);
                 }
                 break;
@@ -109,7 +140,7 @@ public class Player : NetworkBehaviour
         if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
         {
             tileHit = hit.collider.gameObject;
-            CmdAssignObjectAuthority(tileHit.GetComponent<NetworkIdentity>().netId);
+            CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
         }
     }
 
@@ -117,7 +148,7 @@ public class Player : NetworkBehaviour
     public void RpcPutPieceDown(GameObject checkerHit, GameObject tileHit)
     {
         checkerHit.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
-        CmdRemoveObjectAuthority(tileHit.GetComponent<NetworkIdentity>().netId);
+        CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
     }
 
     [ClientRpc]
@@ -127,15 +158,18 @@ public class Player : NetworkBehaviour
 
         if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
         {
-            if(tileHit == hit.collider.gameObject)
-                DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
+            if (tileHit == hit.collider.gameObject)
+                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
+                tileHit.GetComponent<MeshRenderer>().material.color = new Color(1f, 0.1f, 0.5f, 1.0f);
             else
             {
-                DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(0f, 0f, 0f, 0f) * 0f);
-                CmdRemoveObjectAuthority(tileHit.GetComponent<NetworkIdentity>().netId);
+                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(0f, 0f, 0f, 0f) * 0f);
+                tileHit.GetComponent<MeshRenderer>().material.color = new Color(0f, 0f, 0f, 1.0f);
+                CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
                 tileHit = hit.collider.gameObject;
-                CmdAssignObjectAuthority(tileHit.GetComponent<NetworkIdentity>().netId);
-                DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
+                CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
+                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
+                tileHit.GetComponent<MeshRenderer>().material.color = new Color(1f, 0.1f, 0.5f, 1.0f);
             }
         }
     }

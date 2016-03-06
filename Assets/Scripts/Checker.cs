@@ -9,6 +9,8 @@ public class Checker : NetworkBehaviour
     public Vector3 rotation;
     [SyncVar]
     public Vector3 scale;
+    [SyncVar]
+    public bool isBlack;
 
     public override void OnStartClient()
     {
@@ -16,16 +18,16 @@ public class Checker : NetworkBehaviour
             return;
 
         var goImageTarget = GameObject.Find("ImageTarget");
-        var materialPlasticRed = (Material)Resources.Load("plastic-red");
         var materialPlasticBlack = (Material)Resources.Load("plastic-black");
+        var materialPlasticRed = (Material)Resources.Load("plastic-red");
 
         this.GetComponent<Transform>().parent = goImageTarget.transform;
         this.GetComponent<Transform>().position = position;
         this.GetComponent<Transform>().eulerAngles = rotation;
         this.GetComponent<Transform>().localScale = scale;
-        if(this.GetComponent<Transform>().position.z > 0)
-            this.GetComponent<MeshRenderer>().material = materialPlasticRed;
-        else
+        if (this.isBlack == true)
             this.GetComponent<MeshRenderer>().material = materialPlasticBlack;
+        else
+            this.GetComponent<MeshRenderer>().material = materialPlasticRed;
     }
 }
