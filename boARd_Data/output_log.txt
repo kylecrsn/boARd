@@ -16,24 +16,24 @@ Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking
 Loading D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking.dll into Unity Child Domain
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll (this message is harmless)
 Loading D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll into Unity Child Domain
-- Completed reload, in  0.129 seconds
+- Completed reload, in  0.167 seconds
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.Core.dll (this message is harmless)
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.dll (this message is harmless)
 desktop: 1920x1080 60Hz; virtual: 5760x1080 at -1920,0
 <RI> Initializing input.
 <RI> Input initialized.
 <RI> Initialized touch support.
-UnloadTime: 0.502108 ms
+UnloadTime: 0.481092 ms
 Setting up 2 worker threads for Enlighten.
-  Thread -> id: 2ea8 -> priority: 1 
-  Thread -> id: 2f50 -> priority: 1 
-NetwrokDiscovery set broadbast data to:NetworkManager:localhost:7777
+  Thread -> id: 11c0 -> priority: 1 
+  Thread -> id: 11d0 -> priority: 1 
+Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 0.248214 ms
+Setting BehaviourComponentFactory
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
 
-Unloading 5 Unused Serialized files (Serialized files now loaded: 0)
-UnloadTime: 0.244806 ms
-Setting BehaviourComponentFactory
+Trackable stones lost
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
 
@@ -73,19 +73,86 @@ StartVuforia
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
 
+
+Unloading 9 unused Assets to reduce memory usage. Loaded Objects now: 778.
+Total: 0.261278 ms (FindLiveObjects: 0.024423 ms CreateObjectMapping: 0.023571 ms MarkObjects: 0.195674 ms  DeleteObjects: 0.017039 ms)
+
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
 Trackable stones lost
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
-
-
-Unloading 9 unused Assets to reduce memory usage. Loaded Objects now: 1893.
-Total: 0.503244 ms (FindLiveObjects: 0.053391 ms CreateObjectMapping: 0.039475 ms MarkObjects: 0.392201 ms  DeleteObjects: 0.017891 ms)
 
 StopVuforia
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
 
+UnloadTime: 5.068795 ms
+
+Unloading 19 unused Assets to reduce memory usage. Loaded Objects now: 752.
+Total: 0.271502 ms (FindLiveObjects: 0.027547 ms CreateObjectMapping: 0.020731 ms MarkObjects: 0.195390 ms  DeleteObjects: 0.027547 ms)
+
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+UnloadTime: 0.255882 ms
+Setting BehaviourComponentFactory
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
 Trackable stones lost
  
 (Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Vuforia initialization successful
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Could not initialize the tracker.
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Could not initialize the tracker.
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Creating a Mono Camera Configuration (Check for reflection)
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+SetHint
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+SetHint
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+SetHint
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+Dataset boARd-Database could not be loaded and cannot be activated.
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+StartVuforia
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+
+Unloading 7 unused Assets to reduce memory usage. Loaded Objects now: 778.
+Total: 0.254746 ms (FindLiveObjects: 0.018459 ms CreateObjectMapping: 0.021015 ms MarkObjects: 0.200218 ms  DeleteObjects: 0.014767 ms)
+
+Log: connection {1} has been disconnected by timeout; address {::ffff:127.0.0.1:7777}
+Unloading 4 Unused Serialized files (Serialized files now loaded: 0)
+Trackable stones lost
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+StopVuforia
+ 
+(Filename: C:/buildslave/unity/build/artifacts/generated/common/runtime/UnityEngineDebugBindings.gen.cpp Line: 37)
+
+UnloadTime: 1.229143 ms
+
+Unloading 19 unused Assets to reduce memory usage. Loaded Objects now: 749.
+Total: 0.298765 ms (FindLiveObjects: 0.011359 ms CreateObjectMapping: 0.021015 ms MarkObjects: 0.239978 ms  DeleteObjects: 0.026127 ms)
 
