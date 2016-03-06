@@ -4,9 +4,9 @@ using UnityEngine.Networking;
 public class Player : NetworkBehaviour
 {
     [SyncVar]
-    private GameObject checkerHit;
+    private GameObject currentChecker;
     [SyncVar]
-    private GameObject tileHit;
+    private GameObject currentTile;
 
     public const float _dragSpeed = 0.09f;
 
@@ -17,6 +17,7 @@ public class Player : NetworkBehaviour
 
         LocalStateInitialization();
     }
+
     public void LocalStateInitialization()
     {
         //Erase the original tiles in the chessboard and set the new ones to be children of the image target
@@ -54,33 +55,33 @@ public class Player : NetworkBehaviour
             case TouchPhase.Began:
                 if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
                 {
-                    checkerHit = hit.transform.gameObject;
-                    CmdAssignObjectAuthority(checkerHit.GetComponent<NetworkIdentity>().netId);
-                    if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+                    currentChecker = hit.transform.gameObject;
+                    CmdAssignObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
+                    if (Physics.Raycast(currentChecker.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
                     {
-                        tileHit = hit.collider.gameObject;
-                        CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-                        CmdPickPieceUp(checkerHit, tileHit);
+                        currentTile = hit.collider.gameObject;
+                        CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                        CmdPickPieceUp();
                     }
                     else
-                        tileHit = null;
+                        currentTile = null;
                 }
                 else
-                    checkerHit = null;
+                    currentChecker = null;
                 break;
             case TouchPhase.Moved:
-                if (checkerHit != null && tileHit != null && hasAuthority == true)
+                if (currentChecker != null && currentTile != null && hasAuthority == true)
                 {
-                    CmdDragPiece(checkerHit, Input.GetTouch(0).deltaPosition);
-                    CmdTargetSquare(checkerHit, tileHit);
+                    CmdDragPiece(Input.GetTouch(0).deltaPosition);
+                    CmdTargetSquare();
                 }
                 break;
             case TouchPhase.Ended:
-                if (checkerHit != null && tileHit != null && hasAuthority == true)
+                if (currentChecker != null && currentTile != null && hasAuthority == true)
                 {
-                    CmdPutPieceDown(checkerHit, tileHit);
-                    CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-                    CmdRemoveObjectAuthority(checkerHit.GetComponent<NetworkIdentity>().netId);
+                    CmdPutPieceDown();
+                    CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                    CmdRemoveObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
                 }
                 break;
         }
@@ -99,77 +100,68 @@ public class Player : NetworkBehaviour
     }
 
     [Command]
-    public void CmdDragPiece(GameObject checkerHit, Vector2 deltaPos)
+    public void CmdDragPiece(Vector2 deltaPos)
     {
-        RpcDragPiece(checkerHit, deltaPos);
+        RpcDragPiece(deltaPos);
     }
 
     [Command]
-    public void CmdPickPieceUp(GameObject checkerHit, GameObject tileHit)
+    public void CmdPickPieceUp()
     {
-        RpcPickPieceUp(checkerHit, tileHit);
+        RpcPickPieceUp();
     }
 
     [Command]
-    public void CmdPutPieceDown(GameObject checkerHit, GameObject tileHit)
+    public void CmdPutPieceDown()
     {
-        RpcPutPieceDown(checkerHit, tileHit);
+        RpcPutPieceDown();
     }
 
     [Command]
-    public void CmdTargetSquare(GameObject checkerHit, GameObject tileHit)
+    public void CmdTargetSquare()
     {
-        RpcTargetSquare(checkerHit, tileHit);
+        RpcTargetSquare();
     }
 
     [ClientRpc]
-    public void RpcDragPiece(GameObject checkerHit, Vector2 deltaPos)
+    public void RpcDragPiece(Vector2 deltaPos)
     {
-        checkerHit.GetComponent<Transform>().position = new Vector3(checkerHit.GetComponent<Transform>().position.x + (deltaPos.x * _dragSpeed),
-            checkerHit.GetComponent<Transform>().position.y,
-            checkerHit.GetComponent<Transform>().position.z + (deltaPos.y * _dragSpeed));
+        currentChecker.GetComponent<Transform>().position = new Vector3(currentChecker.GetComponent<Transform>().position.x + (deltaPos.x * _dragSpeed),
+            currentChecker.GetComponent<Transform>().position.y,
+            currentChecker.GetComponent<Transform>().position.z + (deltaPos.y * _dragSpeed));
     }
 
     [ClientRpc]
-    public void RpcPickPieceUp(GameObject checkerHit, GameObject tileHit)
+    public void RpcPickPieceUp()
+    {
+        currentChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+    }
+
+    [ClientRpc]
+    public void RpcPutPieceDown()
+    {
+        currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
+    }
+
+    [ClientRpc]
+    public void RpcTargetSquare()
     {
         RaycastHit hit;
 
-        checkerHit.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
-
-        if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+        if (Physics.Raycast(currentChecker.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
         {
-            tileHit = hit.collider.gameObject;
-            CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-        }
-    }
-
-    [ClientRpc]
-    public void RpcPutPieceDown(GameObject checkerHit, GameObject tileHit)
-    {
-        checkerHit.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
-        CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-    }
-
-    [ClientRpc]
-    public void RpcTargetSquare(GameObject checkerHit, GameObject tileHit)
-    {
-        RaycastHit hit;
-
-        if (Physics.Raycast(checkerHit.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
-        {
-            if (tileHit == hit.collider.gameObject)
-                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
-                tileHit.GetComponent<MeshRenderer>().material.color = new Color(1f, 0.1f, 0.5f, 1.0f);
-            else
+            if (currentTile != hit.collider.gameObject)
             {
-                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(0f, 0f, 0f, 0f) * 0f);
-                tileHit.GetComponent<MeshRenderer>().material.color = new Color(0f, 0f, 0f, 1.0f);
-                CmdRemoveObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-                tileHit = hit.collider.gameObject;
-                CmdAssignObjectAuthority(tileHit.GetComponentInParent<NetworkIdentity>().netId);
-                //DynamicGI.SetEmissive(tileHit.GetComponent<Renderer>(), new Color(1f, 0.1f, 0.5f, 1.0f) * 0.5f);
-                tileHit.GetComponent<MeshRenderer>().material.color = new Color(1f, 0.1f, 0.5f, 1.0f);
+                currentTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
+
+                //////
+                CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                currentTile = hit.collider.gameObject;
+                CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                //////
+
+                currentTile.GetComponent<MeshRenderer>().material.EnableKeyword("_EMISSION");
+                currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0.25f, 0f, 0f));
             }
         }
     }
