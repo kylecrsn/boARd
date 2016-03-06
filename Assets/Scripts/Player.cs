@@ -3,12 +3,12 @@ using UnityEngine.Networking;
 
 public class Player : NetworkBehaviour
 {
-
     [SyncVar]
     private GameObject currentChecker;
     [SyncVar]
     private GameObject currentTile;
 
+    public Vector3 originalPos;
     public const float _dragSpeed = 0.09f;
 
     public void Start()
@@ -73,8 +73,7 @@ public class Player : NetworkBehaviour
             case TouchPhase.Moved:
                 if (currentChecker != null && currentTile != null && hasAuthority == true)
                 {
-                   // CmdDragPiece(Input.GetTouch(0).deltaPosition);
-                    CmdTargetSquare();
+                    CmdDragPiece();
                 }
                 break;
             case TouchPhase.Ended:
@@ -101,9 +100,9 @@ public class Player : NetworkBehaviour
     }
 
     [Command]
-    public void CmdDragPiece(Vector2 deltaPos)
+    public void CmdDragPiece()
     {
-        RpcDragPiece(deltaPos);
+        RpcDragPiece();
     }
 
     [Command]
@@ -118,34 +117,24 @@ public class Player : NetworkBehaviour
         RpcPutPieceDown();
     }
 
-    [Command]
-    public void CmdTargetSquare()
-    {
-        RpcTargetSquare();
-    }
-
-    [ClientRpc]
-    public void RpcDragPiece(Vector2 deltaPos)
-    {
-        currentChecker.GetComponent<Transform>().position = new Vector3(currentChecker.GetComponent<Transform>().position.x + (deltaPos.x * _dragSpeed),
-            currentChecker.GetComponent<Transform>().position.y,
-            currentChecker.GetComponent<Transform>().position.z + (deltaPos.y * _dragSpeed));
-    }
-
     [ClientRpc]
     public void RpcPickPieceUp()
     {
+        originalPos = currentChecker.GetComponent<Transform>().position;
         currentChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
     }
 
     [ClientRpc]
     public void RpcPutPieceDown()
     {
-        currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
+        if (currentTile.GetComponent<Tile>().invalid == true)
+            currentChecker.GetComponent<Transform>().position = originalPos;
+        else
+            currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
     }
 
     [ClientRpc]
-    public void RpcTargetSquare()
+    public void RpcDragPiece()
     {
         RaycastHit hit;
 
@@ -155,11 +144,11 @@ public class Player : NetworkBehaviour
             {
                 currentTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
 
-                //////
+                // Make any adjustments to the old tile above this
                 CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
                 currentTile = hit.collider.gameObject;
                 CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
-                //////
+                // Make any adjustments to the new tile below this
 
                 currentChecker.GetComponent<Transform>().position = new Vector3(currentTile.GetComponent<Transform>().position.x,
                     currentChecker.GetComponent<Transform>().position.y,
