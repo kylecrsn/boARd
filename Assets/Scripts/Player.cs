@@ -72,7 +72,7 @@ public class Player : NetworkBehaviour
             case TouchPhase.Moved:
                 if (currentChecker != null && currentTile != null && hasAuthority == true)
                 {
-                    CmdDragPiece(Input.GetTouch(0).deltaPosition);
+                   // CmdDragPiece(Input.GetTouch(0).deltaPosition);
                     CmdTargetSquare();
                 }
                 break;
@@ -148,7 +148,7 @@ public class Player : NetworkBehaviour
     {
         RaycastHit hit;
 
-        if (Physics.Raycast(currentChecker.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Tile"))
         {
             if (currentTile != hit.collider.gameObject)
             {
@@ -159,6 +159,10 @@ public class Player : NetworkBehaviour
                 currentTile = hit.collider.gameObject;
                 CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
                 //////
+
+                currentChecker.GetComponent<Transform>().position = new Vector3(currentTile.GetComponent<Transform>().position.x,
+                    currentChecker.GetComponent<Transform>().position.y,
+                    currentTile.GetComponent<Transform>().position.z);
 
                 currentTile.GetComponent<MeshRenderer>().material.EnableKeyword("_EMISSION");
                 currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0.25f, 0f, 0f));
