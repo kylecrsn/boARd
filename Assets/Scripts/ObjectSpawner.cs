@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using UnityEngine.Networking;
-using System.Collections.Generic;
 
 public class ObjectSpawner : NetworkBehaviour
 {
@@ -9,10 +8,11 @@ public class ObjectSpawner : NetworkBehaviour
     public GameObject tilePrefab;
     public GameObject checkerPrefab;
 
+    //Called when the server is first initialized by the host
     public override void OnStartServer()
     {
-        int x, y;
         var goImageTarget = GameObject.Find("ImageTarget");
+        int x, y;
 
         //Spawn the lighting above the board
         var goLighting = (GameObject)Instantiate(lightingPrefab, Vector3.zero, Quaternion.identity);
@@ -23,7 +23,7 @@ public class ObjectSpawner : NetworkBehaviour
 
         NetworkServer.Spawn(goLighting);
 
-        //Spawn the chessboard slightly above origin
+        //Spawn the chessboard on top of the image target
         var goChessboard = (GameObject)Instantiate(chessboardPrefab, Vector3.zero, Quaternion.identity);
         goChessboard.GetComponent<Transform>().parent = goImageTarget.transform;
         goChessboard.GetComponent<Transform>().position = new Vector3(0f, 0.5f, 0f);
@@ -32,27 +32,26 @@ public class ObjectSpawner : NetworkBehaviour
         
         NetworkServer.Spawn(goChessboard);
 
-        //Spawn networked tiles with original tile transforms, delete original tiles in chessboard client start
+        //Obtain original chessboard tile transforms as reference for the networked tiles
         var tiles = goChessboard.GetChildren(8, 8);
 
         for (x = 0; x < 8; x++)
         {
             for (y = 0; y < 8; y++)
             {
+                //Spawn networked tiles with original tile transforms
                 var goTile = (GameObject)Instantiate(tilePrefab, Vector3.zero, Quaternion.identity);
                 goTile.GetComponent<Transform>().position = tiles[x][y].GetComponent<Transform>().position;
                 goTile.GetComponent<Transform>().eulerAngles = tiles[x][y].GetComponent<Transform>().eulerAngles;
                 goTile.GetComponent<Transform>().localScale = tiles[x][y].GetComponent<Transform>().localScale;
                 goTile.GetComponent<Transform>().parent = GameObject.Find("ChessboardReference").GetComponent<Transform>();
-
-                var tile = goTile.GetComponent<Tile>();
-                tile.gridX = x;
-                tile.gridY = y;
-                tile.valid = false;
-                tile.invalid = false;
-                tile.black = false;
-                tile.red = false;
-
+                goTile.GetComponent<Tile>().gridX = x;
+                goTile.GetComponent<Tile>().gridY = y;
+                goTile.GetComponent<Tile>().white = false;
+                goTile.GetComponent<Tile>().valid = false;
+                goTile.GetComponent<Tile>().redChecker = false;
+                goTile.GetComponent<Tile>().blackChecker = false;
+                
                 //Spawn checker pieces relative to the surface of each tile
                 if ((x % 2 == 0 && y % 2 == 0 && (y == 0 || y == 2 || y == 6)) || (x % 2 == 1 && y % 2 == 1 && (y == 1 || y == 5 || y == 7)))
                 {
@@ -64,26 +63,24 @@ public class ObjectSpawner : NetworkBehaviour
                         goTile.GetComponent<Transform>().position.z);
                     goChecker.GetComponent<Transform>().eulerAngles = Quaternion.Euler(-90f, 0f, 0f).eulerAngles;
                     goChecker.GetComponent<Transform>().localScale = new Vector3(0.09f, 0.09f, 0.09f);
-
-                    var checker = goChecker.GetComponent<Checker>();
+                    goChecker.GetComponent<Checker>().originPos = goChecker.GetComponent<Transform>().position;
                     if (y < 4)
                     {
-                        checker.isBlack = true;
-                        tile.black = true;
+                        goChecker.GetComponent<Checker>().red = false;
+                        goTile.GetComponent<Tile>().blackChecker = true;
                     }
                     else
                     {
-                        checker.isBlack = false;
-                        tile.red = true;
+                        goChecker.GetComponent<Checker>().red = true;
+                        goTile.GetComponent<Tile>().redChecker = true;
                     }
-                    tile.invalid = true;
 
                     NetworkServer.Spawn(goChecker);
                 }
                 else if ((x % 2 == 1 && y % 2 == 0) || (x % 2 == 0 && y % 2 == 1))
-                    tile.invalid = true;
+                    goTile.GetComponent<Tile>().white = true;
                 else
-                    tile.valid = true;
+                    goTile.GetComponent<Tile>().valid = true;
 
                 NetworkServer.Spawn(goTile);
             }

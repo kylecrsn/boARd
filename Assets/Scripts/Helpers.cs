@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public static class Helpers
 {
-    //Takes a GameObject and iterates through its children, returning a 1D List of the results
+    //Takes a game object and iterates through its children, returning a one-dimensional list of children
     public static List<GameObject> GetChildren(this GameObject go)
     {
         List<GameObject> children = new List<GameObject>();
@@ -14,7 +14,7 @@ public static class Helpers
         return children;
     }
 
-    //Takes a GameObject and outer and inner list sizes and iterates through its children, returning a 2D List of the results
+    //Takes a game object and iterates through its children, using an outer and inner dimension length to return a two-dimensional list of children
     public static List<List<GameObject>> GetChildren(this GameObject go, int outerSize, int innerSize)
     {
         if (outerSize < 1 || innerSize < 1)
@@ -22,9 +22,9 @@ public static class Helpers
 
         List<List<GameObject>> children = new List<List<GameObject>>();
         int skip = 0;
-        int j = 0;
+        int x, y = 0;
 
-        for(int i = 0; i < outerSize; i++)
+        for(x = 0; x < outerSize; x++)
         {
             var innerList = new List<GameObject>();
 
@@ -37,14 +37,14 @@ public static class Helpers
                 }
 
                 innerList.Add(tran.gameObject);
-                j++;
+                y++;
 
-                if (j == innerSize)
+                if (y == innerSize)
                     break;
             }
 
-            j = 0;
-            skip = (i + 1) * innerSize;
+            y = 0;
+            skip = (x + 1) * innerSize;
             children.Add(innerList);
         }
 

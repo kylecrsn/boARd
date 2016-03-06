@@ -3,14 +3,13 @@ using UnityEngine.Networking;
 
 public class Player : NetworkBehaviour
 {
-    [SyncVar]
+    [SyncVar] //Checker game object that the player is currently touching/dragging; values are maintained after letting go until the screen is touched again
     private GameObject currentChecker;
-    [SyncVar]
+    [SyncVar] //Tile game object that the current checker is sitting/floating on; values are maintained after letting go until the screen is touched again
     private GameObject currentTile;
+    public const float _dragSpeedFactor = 0.09f;
 
-    public Vector3 originalPos;
-    public const float _dragSpeed = 0.09f;
-
+    //Called when the scene begins; all objects have at this point spawned into the player's client instance
     public void Start()
     {
         if (!isLocalPlayer)
@@ -19,144 +18,174 @@ public class Player : NetworkBehaviour
         LocalStateInitialization();
     }
 
+    //Handle any object initialization that either can't be done by the object's OnStartClient method or is relative to the local player
     public void LocalStateInitialization()
     {
-        //Erase the original tiles in the chessboard and set the new ones to be children of the image target
         var oldTiles = GameObject.FindGameObjectWithTag("Chessboard").GetChildren();
         var newTiles = GameObject.FindGameObjectsWithTag("Tile");
         int i;
 
+        //Erase the original reference tiles in the chessboard and set the networked ones to be children of the image target
         for (i = 0; i < 64; i++)
         {
             Destroy(oldTiles[i]);
             newTiles[i].GetComponent<Transform>().parent = GameObject.Find("ImageTarget").GetComponent<Transform>();
         }
 
+        //Destroy the placeholder chessboard reference
         Destroy(GameObject.Find("ChessboardReference"));
     }
 
+    //Called each frame of the game
     void Update()
     {
         if (!isLocalPlayer)
             return;
 
-        if (Input.touchCount == 1)
-        {
-            AttemptMoveChecker();
-        }
-    }
-
-    //Called for one touch, handles picking up, dragging, and letting go of checker
-    private void AttemptMoveChecker()
-    {
         RaycastHit hit;
 
-        switch (Input.GetTouch(0).phase)
+        //When one finger touches the screen...
+        if (Input.touchCount == 1)
         {
-            case TouchPhase.Began:
-                if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
-                {
-                    currentChecker = hit.transform.gameObject;
-                    CmdAssignObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
-                    if (Physics.Raycast(currentChecker.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+            switch (Input.GetTouch(0).phase)
+            {
+                case TouchPhase.Began:
+                    //If the touch begins on a checker, set the current checker and tile and pick up the checker
+                    if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
                     {
-                        currentTile = hit.collider.gameObject;
-                        CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
-                        CmdPickPieceUp();
+                        //Assign currentChecker to the checker that was hit and obtain local player authority (LPA) over it
+                        currentChecker = hit.transform.gameObject;
+                        CmdAssignObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
+                        if (Physics.Raycast(currentChecker.GetComponent<Transform>().position, Vector3.down, out hit) && hit.transform.tag.Equals("Tile"))
+                        {
+                            //Assign currentTile to the tile below the checker and obtain local player authority (LPA) over it
+                            currentTile = hit.collider.gameObject;
+                            CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                            CmdPickPieceUp();
+                        }
+                        else
+                            currentTile = null;
                     }
                     else
-                        currentTile = null;
-                }
-                else
-                    currentChecker = null;
-                break;
-            case TouchPhase.Moved:
-                if (currentChecker != null && currentTile != null && hasAuthority == true)
-                {
-                    CmdDragPiece();
-                }
-                break;
-            case TouchPhase.Ended:
-                if (currentChecker != null && currentTile != null && hasAuthority == true)
-                {
-                    CmdPutPieceDown();
-                    CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
-                    CmdRemoveObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
-                }
-                break;
+                        currentChecker = null;
+                    break;
+                case TouchPhase.Moved:
+                    //If a checker is currently being touched, move it and handle all necessary gameplay logic
+                    if (currentChecker != null && currentTile != null && hasAuthority == true)
+                    {
+                        CmdMovePiece();
+                    }
+                    break;
+                case TouchPhase.Ended:
+                    //If a checker was being touched and has now been let go, put it back down on the board and release LPA over the checker and tile
+                    if (currentChecker != null && currentTile != null && hasAuthority == true)
+                    {
+                        CmdPutPieceDown();
+                        CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
+                        CmdRemoveObjectAuthority(currentChecker.GetComponent<NetworkIdentity>().netId);
+                    }
+                    break;
+            }
         }
     }
 
-    [Command]
+    [Command] //Obtains local player authority (LPA) over an object; allows player to modify a non-player (server) object
     void CmdAssignObjectAuthority(NetworkInstanceId netId)
     {
         NetworkServer.objects[netId].AssignClientAuthority(connectionToClient);
     }
 
-    [Command]
+    [Command] //Releases local player authority (LPA) over an object; prevents player from modifying a non-player (server) object
     void CmdRemoveObjectAuthority(NetworkInstanceId netId)
     {
         NetworkServer.objects[netId].RemoveClientAuthority(connectionToClient);
     }
 
-    [Command]
-    public void CmdDragPiece()
-    {
-        RpcDragPiece();
-    }
-
-    [Command]
+    [Command] //Routes an rpc call to pick up a checker piece; keeps the player objects on the clients and server synced
     public void CmdPickPieceUp()
     {
         RpcPickPieceUp();
     }
 
-    [Command]
+    [Command] //Routes an rpc call to move a checker piece; keeps the player objects on the clients and server synced
+    public void CmdMovePiece()
+    {
+        RpcMovePiece();
+    }
+
+    [Command] //Routes an rpc call to put down a checker piece; keeps the client-to-server player objects synced
     public void CmdPutPieceDown()
     {
         RpcPutPieceDown();
     }
 
-    [ClientRpc]
+    [ClientRpc] //Picks up a checker, performing any initialization logic; keeps the server-to-client objects synced
     public void RpcPickPieceUp()
     {
-        originalPos = currentChecker.GetComponent<Transform>().position;
+        //Set the checker's origin position and pick it up
+        currentChecker.GetComponent<Checker>().originPos = currentChecker.GetComponent<Transform>().position;
         currentChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
     }
 
-    [ClientRpc]
-    public void RpcPutPieceDown()
+    [ClientRpc] //Moves a checker, handling all checker/tile modifications and game logic; keeps the server-to-client objects synced
+    public void RpcMovePiece()
     {
-        if (currentTile.GetComponent<Tile>().invalid == true)
-            currentChecker.GetComponent<Transform>().position = originalPos;
-        else
-            currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
-    }
+        RaycastHit[] hits = Physics.RaycastAll(Camera.main.ScreenPointToRay(Input.GetTouch(0).position));
 
-    [ClientRpc]
-    public void RpcDragPiece()
-    {
-        RaycastHit hit;
-
-        if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Tile"))
+        foreach(var hit in hits)
         {
-            if (currentTile != hit.collider.gameObject)
+            //Check if the object hit is a tile and not the current tile
+            if (hit.transform.tag.Equals("Tile") && hit.collider.gameObject != currentTile)
             {
+                //Reset the highlight of the previous tile
+                currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0f, 0f));
                 currentTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
 
-                // Make any adjustments to the old tile above this
+                //***Make any adjustments to the old tile above this***
+
+                //Release the LPA over the previous tile and obtain LPA over the new tile
                 CmdRemoveObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
                 currentTile = hit.collider.gameObject;
                 CmdAssignObjectAuthority(currentTile.GetComponent<NetworkIdentity>().netId);
-                // Make any adjustments to the new tile below this
 
+                //***Make any adjustments to the new tile below this***
+
+                //Snap the checker to hover above the new tile
                 currentChecker.GetComponent<Transform>().position = new Vector3(currentTile.GetComponent<Transform>().position.x,
                     currentChecker.GetComponent<Transform>().position.y,
                     currentTile.GetComponent<Transform>().position.z);
 
+                //Set the appropriate highlight color of the new tile
                 currentTile.GetComponent<MeshRenderer>().material.EnableKeyword("_EMISSION");
-                currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0.25f, 0f, 0f));
+                if (currentTile.GetComponent<Tile>().valid == true)
+                {
+                    if (currentTile.GetComponent<Tile>().white == true)
+                        currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0.25f, 0f));
+                    else
+                        currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0.125f, 0f));
+                }
+                else
+                {
+                    if (currentTile.GetComponent<Tile>().white == true)
+                        currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0.25f, 0f, 0f));
+                    else
+                        currentTile.GetComponent<Tile>().GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0.125f, 0f, 0f));
+                }
             }
         }
+    }
+
+    [ClientRpc] //Puts down a checker, performing any reset logic; keeps the server-to-client objects synced
+    public void RpcPutPieceDown()
+    {
+        //Put down the checker if the position is valid, otherwise snap back to original position
+        if (currentTile.GetComponent<Tile>().GetComponent<Tile>().valid == false)
+            currentChecker.GetComponent<Transform>().position = currentChecker.GetComponent<Checker>().originPos;
+        else
+            currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
+
+        //Reset the highlight of the previous tile
+        currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0f, 0f));
+        currentTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
     }
 }
