@@ -3,10 +3,20 @@ using UnityEngine.Networking;
 
 public class Tile : NetworkBehaviour
 {
+    public struct TileState
+    {
+        bool empty;
+        bool invalid;
+        bool red;
+        bool black;
+    }
+
     [SyncVar]                       //0 -> 63 grid values == (gridX * 8) + gridY
     public int gridX;
     [SyncVar]
     public int gridY;
+    [SyncVar]
+    public TileState state;
 
     public override void OnStartClient()
     {

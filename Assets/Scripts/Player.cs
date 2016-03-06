@@ -3,6 +3,7 @@ using UnityEngine.Networking;
 
 public class Player : NetworkBehaviour
 {
+
     [SyncVar]
     private GameObject currentChecker;
     [SyncVar]
