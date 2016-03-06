@@ -3,6 +3,14 @@ using UnityEngine.Networking;
 
 public class Tile : NetworkBehaviour
 {
+    public struct TileState
+    {
+        bool empty;
+        bool invalid;
+        bool red;
+        bool black;
+    }
+
     [SyncVar]
     public Vector3 position;
     [SyncVar]
@@ -13,6 +21,9 @@ public class Tile : NetworkBehaviour
     public int gridX;
     [SyncVar]
     public int gridY;
+
+    [SyncVar]
+    public TileState state;
 
     public override void OnStartClient()
     {
