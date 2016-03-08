@@ -7,6 +7,11 @@ public class Player : NetworkBehaviour
     private GameObject currentChecker;
     [SyncVar] //Tile game object that the current checker is sitting/floating on; values are maintained after letting go until the screen is touched again
     private GameObject currentTile;
+    [SyncVar] //Valid tile to the left diagonal
+    public GameObject tilePrefab;
+    [SyncVar] //Server's (black) turn when true, client's (red) turn when false
+    public bool turn = true;
+
     public const float _dragSpeedFactor = 0.09f;
 
     //Called when the scene begins; all objects have at this point spawned into the player's client instance
@@ -40,6 +45,9 @@ public class Player : NetworkBehaviour
     void Update()
     {
         if (!isLocalPlayer)
+            return;
+        //Return if it is not your turn
+        if ((!turn && isServer) || (turn && !isServer)) 
             return;
 
         RaycastHit hit;
@@ -122,9 +130,36 @@ public class Player : NetworkBehaviour
     [ClientRpc] //Picks up a checker, performing any initialization logic; keeps the server-to-client objects synced
     public void RpcPickPieceUp()
     {
-        //Set the checker's origin position and pick it up
-        currentChecker.GetComponent<Checker>().originPos = currentChecker.GetComponent<Transform>().position;
-        currentChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+        var newTiles = GameObject.FindGameObjectsWithTag("Tile");
+        //Allows server to only move black pieces, client to only move red pieces
+        if ((isServer && currentChecker.GetComponent<Checker>().red == false) ||
+            (!isServer && currentChecker.GetComponent<Checker>().red == true))
+        {
+            //Set valid moves
+            if (currentChecker.GetComponent<Checker>().red == false) //black checker movement
+            {
+                foreach (GameObject vTile in newTiles)
+                {
+                    if (((vTile.GetComponent<Tile>().gridX == currentTile.GetComponent<Tile>().gridX + 1) ||
+                      (vTile.GetComponent<Tile>().gridX == currentTile.GetComponent<Tile>().gridX - 1)) &&
+                      (vTile.GetComponent<Tile>().gridY == currentTile.GetComponent<Tile>().gridY + 1))
+                        vTile.GetComponent<Tile>().valid = true;
+                }
+            }
+            else if (currentChecker.GetComponent<Checker>().red == true) //red checker movement
+            {
+                foreach (GameObject vTile in newTiles)
+                {
+                    if (((vTile.GetComponent<Tile>().gridX == currentTile.GetComponent<Tile>().gridX + 1) ||
+                      (vTile.GetComponent<Tile>().gridX == currentTile.GetComponent<Tile>().gridX - 1)) &&
+                      (vTile.GetComponent<Tile>().gridY == currentTile.GetComponent<Tile>().gridY - 1))
+                        vTile.GetComponent<Tile>().valid = true;
+                }
+            }
+        }
+            //Set the checker's origin position and pick it up
+            currentChecker.GetComponent<Checker>().originPos = currentChecker.GetComponent<Transform>().position;
+            currentChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
     }
 
     [ClientRpc] //Moves a checker, handling all checker/tile modifications and game logic; keeps the server-to-client objects synced
@@ -182,7 +217,10 @@ public class Player : NetworkBehaviour
         if (currentTile.GetComponent<Tile>().GetComponent<Tile>().valid == false)
             currentChecker.GetComponent<Transform>().position = currentChecker.GetComponent<Checker>().originPos;
         else
+        {
             currentChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
+            turn = !turn; //End turn, need to edit for multiple turns
+        }
 
         //Reset the highlight of the previous tile
         currentTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0f, 0f));

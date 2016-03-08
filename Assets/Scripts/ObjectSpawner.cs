@@ -79,8 +79,8 @@ public class ObjectSpawner : NetworkBehaviour
                 }
                 else if ((x % 2 == 1 && y % 2 == 0) || (x % 2 == 0 && y % 2 == 1))
                     goTile.GetComponent<Tile>().white = true;
-                else
-                    goTile.GetComponent<Tile>().valid = true;
+//                else
+//                    goTile.GetComponent<Tile>().valid = true;
 
                 NetworkServer.Spawn(goTile);
             }
