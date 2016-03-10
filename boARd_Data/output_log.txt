@@ -16,9 +16,14 @@ Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking
 Loading D:\Code\Repos\boARd\boARd_Data\Managed\UnityEngine.Networking.dll into Unity Child Domain
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll (this message is harmless)
 Loading D:\Code\Repos\boARd\boARd_Data\Managed\Qualcomm.Vuforia.UnityExtensions.dll into Unity Child Domain
-- Completed reload, in  0.045 seconds
+- Completed reload, in  0.386 seconds
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.Core.dll (this message is harmless)
 Platform assembly: D:\Code\Repos\boARd\boARd_Data\Managed\System.dll (this message is harmless)
 desktop: 1920x1080 60Hz; virtual: 5760x1080 at -1920,0
 <RI> Initializing input.
 <RI> Input initialized.
+<RI> Initialized touch support.
+UnloadTime: 0.497280 ms
+Setting up 2 worker threads for Enlighten.
+  Thread -> id: 2448 -> priority: 1 
+  Thread -> id: 1170 -> priority: 1 

@@ -32,9 +32,15 @@ public class Tile : NetworkBehaviour
             this.GetComponent<MeshRenderer>().material = materialTileBlack;
     }
 
-    //Returns the one-dimensional grid position value which can range from 0 to 63
-    public int oneDimGridVal()
+    //Returns a Tile GameObject from the given array of tile objects of the given x and y corrdinates
+    public Tile GetTile(GameObject[] tiles, int x, int y)
     {
-        return (gridX * 8) + gridY;
+        foreach(var tile in tiles)
+        {
+            if (tile.GetComponent<Tile>().gridX == x && tile.GetComponent<Tile>().gridY == y)
+                return tile.GetComponent<Tile>();
+        }
+
+        return null;
     }
 }

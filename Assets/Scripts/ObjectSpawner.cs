@@ -29,6 +29,7 @@ public class ObjectSpawner : NetworkBehaviour
         goChessboard.GetComponent<Transform>().position = new Vector3(0f, 0.5f, 0f);
         goChessboard.GetComponent<Transform>().eulerAngles = Quaternion.Euler(-90f, -90f, 0f).eulerAngles;
         goChessboard.GetComponent<Transform>().localScale = new Vector3(0.1f, 0.1f, 0.1f);
+        goChessboard.GetComponent<Chessboard>().turn = true;
         
         NetworkServer.Spawn(goChessboard);
 
@@ -63,7 +64,12 @@ public class ObjectSpawner : NetworkBehaviour
                         goTile.GetComponent<Transform>().position.z);
                     goChecker.GetComponent<Transform>().eulerAngles = Quaternion.Euler(-90f, 0f, 0f).eulerAngles;
                     goChecker.GetComponent<Transform>().localScale = new Vector3(0.09f, 0.09f, 0.09f);
+                    goChecker.GetComponent<Checker>().gridX = x;
+                    goChecker.GetComponent<Checker>().gridY = y;
                     goChecker.GetComponent<Checker>().originPos = goChecker.GetComponent<Transform>().position;
+                    goChecker.GetComponent<Checker>().originGridX = x;
+                    goChecker.GetComponent<Checker>().originGridY = y;
+
                     if (y < 4)
                     {
                         goChecker.GetComponent<Checker>().red = false;
@@ -79,8 +85,6 @@ public class ObjectSpawner : NetworkBehaviour
                 }
                 else if ((x % 2 == 1 && y % 2 == 0) || (x % 2 == 0 && y % 2 == 1))
                     goTile.GetComponent<Tile>().white = true;
-//                else
-//                    goTile.GetComponent<Tile>().valid = true;
 
                 NetworkServer.Spawn(goTile);
             }
