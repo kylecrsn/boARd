@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.SceneManagement;
 
 public class Player : NetworkBehaviour
 {
@@ -8,8 +9,11 @@ public class Player : NetworkBehaviour
     [SyncVar] //Tile game object that the current checker is sitting/floating on
     private GameObject currentGoTile;
 
-    public const float _dragSpeedFactor = 0.09f;
+    private int enemypieces = 12;
     public bool isHostPlayer;
+    public Touch touch;
+
+    public const float _dragSpeedFactor = 0.09f;
 
     //Called when the scene begins; all objects have at this point spawned into the player's client instance
     public void Start()
@@ -17,57 +21,20 @@ public class Player : NetworkBehaviour
         if (!isLocalPlayer)
             return;
 
-        LocalStateInitialization();
+        Initialization();
     }
 
     //Handle any object initialization that either can't be done by the object's OnStartClient method or is relative to the local player
-    public void LocalStateInitialization()
-    {
-        var chessboard = GameObject.FindGameObjectWithTag("Chessboard");
-        var checkers = GameObject.FindGameObjectsWithTag("Checker");
-        var lighting = GameObject.FindGameObjectWithTag("Lighting");
-        var oldTiles = GameObject.FindGameObjectWithTag("Chessboard").GetChildren();
-        var newTiles = GameObject.FindGameObjectsWithTag("Tile");
-        var imageTraget = GameObject.Find("ImageTarget").GetComponent<Transform>();
-        int i;
-
-        //Erase the original reference tiles in the chessboard and set the networked ones to be children of the image target
-        for (i = 0; i < 64; i++)
-        {
-            Destroy(oldTiles[i]);
-            newTiles[i].GetComponent<Transform>().parent = imageTraget;
-        }
-
-        //Destroy the placeholder chessboard reference
-        Destroy(GameObject.Find("ChessboardReference"));
-
-        //Initialize the player's identity
-        isHostPlayer = true;
-
-        //This will be true only for the joining player, not the host
-        if (chessboard.GetComponent<Transform>().parent == null)
-        {
-            //Reassign the actual identity
-            isHostPlayer = false;
-
-            //Set parents to image target
-            chessboard.GetComponent<Transform>().parent = imageTraget;
-            foreach (var checker in checkers)
-                checker.GetComponent<Transform>().parent = imageTraget;
-            lighting.GetComponent<Transform>().parent = imageTraget;
-
-            //Adjust frame scale
-            chessboard.GetComponent<Transform>().localScale *= 10;
-        }
-    }
 
     //Called each frame of the game
     void Update()
     {
         if (!isLocalPlayer)
             return;
+        if (enemypieces <= 0)
+            CmdEndGame();
 
-        var isHostTurn = GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().turn;
+        var isHostTurn = GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn;
 
         //Return if it is not your turn
         if ((isHostPlayer == true && isHostTurn == false) || (isHostPlayer == false && isHostTurn == true))
@@ -78,11 +45,12 @@ public class Player : NetworkBehaviour
         //When one finger touches the screen...
         if (Input.touchCount == 1)
         {
-            switch (Input.GetTouch(0).phase)
+            touch = Input.GetTouch(0);
+            switch (touch.phase)
             {
                 case TouchPhase.Began:
                     //If the touch begins on a checker, set the current checker and tile and pick up the checker
-                    if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
+                    if (Physics.Raycast(Camera.main.ScreenPointToRay(touch.position), out hit) && hit.transform.tag.Equals("Checker"))
                     {
                         //Assign currentChecker to the checker that was hit and obtain local player authority (LPA) over it
                         currentGoChecker = hit.transform.gameObject;
@@ -150,14 +118,19 @@ public class Player : NetworkBehaviour
         RpcPutPieceDown();
     }
 
+    [Command] //Routes an rpc call to change scene to lobby; keeps client and server scenes synced
+    public void CmdEndGame()
+    {
+        RpcEndGame();
+    }
+
     [ClientRpc] //Picks up a checker, performing any initialization logic; keeps the server-to-client objects synced
     public void RpcPickPieceUp()
     {
-        var currentChecker = currentGoChecker.GetComponent<Checker>();
-        var currentTile = currentGoTile.GetComponent<Tile>();
         var tiles = GameObject.FindGameObjectsWithTag("Tile");
         var checkers = GameObject.FindGameObjectsWithTag("Checker");
         var checkersCanJump = 0;
+        int i, j;
 
         //Set cF (colorFactor), which allows all x and y grid calculations to be done regardless of player color
         //(0, 0) in bottom left
@@ -171,57 +144,57 @@ public class Player : NetworkBehaviour
             cF = -1;
 
         //Allows server to only move black pieces, client to only move red pieces
-        if ((isHostPlayer == true && currentChecker.red == false) || (isHostPlayer == false && currentChecker.red == true))
+        if ((isHostPlayer == true && currentGoChecker.GetComponent<Checker>().red == false) || (isHostPlayer == false && currentGoChecker.GetComponent<Checker>().red == true))
         {
             //Handle mapping the valid tiles when hopping another piece
-            foreach (var goChecker in checkers)
+            for(i = 0; i < 24; i++)
             {
-                var checker = goChecker.GetComponent<Checker>();
                 bool invLeft, invRight;
 
                 //Don't calculate jumps for checkers you can't use
-                if ((isHostPlayer == true && checker.red == true) || (isHostPlayer == false && checker.red == false))
+                if ((isHostPlayer == true && checkers[i].GetComponent<Checker>().red == true) || (isHostPlayer == false && checkers[i].GetComponent<Checker>().red == false))
                     continue;
 
                 //Only care about if the checker can jump and land within the grid, overwrite inv's for hopped checkers since they don't matter
                 //If the returned value is null and an inv variable is true, the x and y params are outside the valid grid
                 //If the returned value is null and an inv variable is false, then that tile is empty since no checker is there
-                Checker hoppedLeft = Checker.GetChecker(checkers, checker.gridX - 1 * cF, checker.gridY + 1 * cF, out invLeft);
-                Checker hoppedRight = Checker.GetChecker(checkers, checker.gridX + 1 * cF, checker.gridY + 1 * cF, out invRight);
-                Checker landLeft = Checker.GetChecker(checkers, checker.gridX - 2 * cF, checker.gridY + 2 * cF, out invLeft);
-                Checker landRight = Checker.GetChecker(checkers, checker.gridX + 2 * cF, checker.gridY + 2 * cF, out invRight);
+                Checker hoppedLeft = Checker.GetChecker(checkers, checkers[i].GetComponent<Checker>().gridX - 1 * cF, checkers[i].GetComponent<Checker>().gridY + 1 * cF, out invLeft);
+                Checker hoppedRight = Checker.GetChecker(checkers, checkers[i].GetComponent<Checker>().gridX + 1 * cF, checkers[i].GetComponent<Checker>().gridY + 1 * cF, out invRight);
+                Checker landLeft = Checker.GetChecker(checkers, checkers[i].GetComponent<Checker>().gridX - 2 * cF, checkers[i].GetComponent<Checker>().gridY + 2 * cF, out invLeft);
+                Checker landRight = Checker.GetChecker(checkers, checkers[i].GetComponent<Checker>().gridX + 2 * cF, checkers[i].GetComponent<Checker>().gridY + 2 * cF, out invRight);
 
                 //Left jump is invalid, check right
-                if(invLeft == true)
+                if (invLeft == true)
                 {
-                    if(hoppedRight != null && landRight == null && 
-                        ((checker.red == true && hoppedRight.red == false) || (checker.red == false && hoppedRight.red == true)))
+                    if (hoppedRight != null && landRight == null &&
+                        ((checkers[i].GetComponent<Checker>().red == true && hoppedRight.red == false) || (checkers[i].GetComponent<Checker>().red == false && hoppedRight.red == true)))
                     {
                         //If true, we can immediately set the valid moves map for this piece and return
-                        if (goChecker == currentGoChecker)
+                        if (checkers[i] == currentGoChecker)
                         {
-                            foreach (GameObject goTile in tiles)
+                            for(j = 0; j < 64; j++)
                             {
-                                var tile = goTile.GetComponent<Tile>();
-
                                 //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                                 //without ending their turn (handled in set piece down). Also set the landing position to valid
-                                if ((tile.gridX == currentTile.gridX && tile.gridY == currentTile.gridY) ||
-                                    (tile.gridX == checker.gridX + 2 * cF && tile.gridY == checker.gridY + 2 * cF))
+                                if ((tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX && tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY) ||
+                                    (tiles[j].GetComponent<Tile>().gridX == checkers[i].GetComponent<Checker>().gridX + 2 * cF && tiles[j].GetComponent<Tile>().gridY == checkers[i].GetComponent<Checker>().gridY + 2 * cF))
                                 {
-                                    tile.valid = true;
+                                    tiles[j].GetComponent<Tile>().valid = true;
                                 }
                                 else
                                 {
-                                    tile.valid = false;
+                                    tiles[j].GetComponent<Tile>().valid = false;
                                 }
                             }
 
                             //Set the checker's origin position and pick it up
-                            currentChecker.originPos = currentGoChecker.GetComponent<Transform>().position;
-                            currentChecker.originGridX = currentChecker.gridX;
-                            currentChecker.originGridY = currentChecker.gridY;
-                            currentGoChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+                            currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
+                            currentGoChecker.GetComponent<Checker>().originGridX = currentGoChecker.GetComponent<Checker>().gridX;
+                            currentGoChecker.GetComponent<Checker>().originGridY = currentGoChecker.GetComponent<Checker>().gridY;
+                            currentGoChecker.GetComponent<Transform>().position = new Vector3(
+                                currentGoChecker.GetComponent<Transform>().position.x,
+                                currentGoChecker.GetComponent<Transform>().position.y + 1f,
+                                currentGoChecker.GetComponent<Transform>().position.z);
 
                             return;
                         }
@@ -230,36 +203,37 @@ public class Player : NetworkBehaviour
                     }
                 }
                 //Right jump is invalid, check left
-                else if(invRight == true)
+                else if (invRight == true)
                 {
                     if (hoppedLeft != null && landLeft == null &&
-                        ((checker.red == true && hoppedLeft.red == false) || (checker.red == false && hoppedLeft.red == true)))
+                        ((checkers[i].GetComponent<Checker>().red == true && hoppedLeft.red == false) || (checkers[i].GetComponent<Checker>().red == false && hoppedLeft.red == true)))
                     {
                         //If true, we can immediately set the valid moves map for this piece and return
-                        if (goChecker == currentGoChecker)
+                        if (checkers[i] == currentGoChecker)
                         {
-                            foreach (GameObject goTile in tiles)
+                            for (j = 0; j < 64; j++)
                             {
-                                var tile = goTile.GetComponent<Tile>();
-
                                 //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                                 //without ending their turn (handled in set piece down). Also set the landing position to valid
-                                if ((tile.gridX == currentTile.gridX && tile.gridY == currentTile.gridY) ||
-                                    (tile.gridX == checker.gridX - 2 * cF && tile.gridY == checker.gridY + 2 * cF))
+                                if ((tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX && tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY) ||
+                                    (tiles[j].GetComponent<Tile>().gridX == checkers[i].GetComponent<Checker>().gridX - 2 * cF && tiles[j].GetComponent<Tile>().gridY == checkers[i].GetComponent<Checker>().gridY + 2 * cF))
                                 {
-                                    tile.valid = true;
+                                    tiles[j].GetComponent<Tile>().valid = true;
                                 }
                                 else
                                 {
-                                    tile.valid = false;
+                                    tiles[j].GetComponent<Tile>().valid = false;
                                 }
                             }
 
                             //Set the checker's origin position and pick it up
-                            currentChecker.originPos = currentGoChecker.GetComponent<Transform>().position;
-                            currentChecker.originGridX = currentChecker.gridX;
-                            currentChecker.originGridY = currentChecker.gridY;
-                            currentGoChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+                            currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
+                            currentGoChecker.GetComponent<Checker>().originGridX = currentGoChecker.GetComponent<Checker>().gridX;
+                            currentGoChecker.GetComponent<Checker>().originGridY = currentGoChecker.GetComponent<Checker>().gridY;
+                            currentGoChecker.GetComponent<Transform>().position = new Vector3(
+                                currentGoChecker.GetComponent<Transform>().position.x,
+                                currentGoChecker.GetComponent<Transform>().position.y + 1f,
+                                currentGoChecker.GetComponent<Transform>().position.z);
 
                             return;
                         }
@@ -271,36 +245,37 @@ public class Player : NetworkBehaviour
                 else
                 {
                     if ((hoppedRight != null && landRight == null &&
-                        ((checker.red == true && hoppedRight.red == false) || (checker.red == false && hoppedRight.red == true))) ||
+                        ((checkers[i].GetComponent<Checker>().red == true && hoppedRight.red == false) || (checkers[i].GetComponent<Checker>().red == false && hoppedRight.red == true))) ||
                         (hoppedLeft != null && landLeft == null &&
-                        ((checker.red == true && hoppedLeft.red == false) || (checker.red == false && hoppedLeft.red == true))))
+                        ((checkers[i].GetComponent<Checker>().red == true && hoppedLeft.red == false) || (checkers[i].GetComponent<Checker>().red == false && hoppedLeft.red == true))))
                     {
                         //If true, we can immediately set the valid moves map for this piece and return
-                        if (goChecker == currentGoChecker)
+                        if (checkers[i] == currentGoChecker)
                         {
-                            foreach (GameObject goTile in tiles)
+                            for (j = 0; j < 64; j++)
                             {
-                                var tile = goTile.GetComponent<Tile>();
-
                                 //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                                 //without ending their turn (handled in set piece down). Also set the landing positions to valid
-                                if ((tile.gridX == currentTile.gridX && tile.gridY == currentTile.gridY) ||
-                                    (tile.gridX == checker.gridX + 2 * cF && tile.gridY == checker.gridY + 2 * cF) ||
-                                    (tile.gridX == checker.gridX - 2 * cF && tile.gridY == checker.gridY + 2 * cF))
+                                if ((tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX && tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY) ||
+                                    (tiles[j].GetComponent<Tile>().gridX == checkers[i].GetComponent<Checker>().gridX + 2 * cF && tiles[j].GetComponent<Tile>().gridY == checkers[i].GetComponent<Checker>().gridY + 2 * cF) ||
+                                    (tiles[j].GetComponent<Tile>().gridX == checkers[i].GetComponent<Checker>().gridX - 2 * cF && tiles[j].GetComponent<Tile>().gridY == checkers[i].GetComponent<Checker>().gridY + 2 * cF))
                                 {
-                                    tile.valid = true;
+                                    tiles[j].GetComponent<Tile>().valid = true;
                                 }
                                 else
                                 {
-                                    tile.valid = false;
+                                    tiles[j].GetComponent<Tile>().valid = false;
                                 }
                             }
 
                             //Set the checker's origin position and pick it up
-                            currentChecker.originPos = currentGoChecker.GetComponent<Transform>().position;
-                            currentChecker.originGridX = currentChecker.gridX;
-                            currentChecker.originGridY = currentChecker.gridY;
-                            currentGoChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+                            currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
+                            currentGoChecker.GetComponent<Checker>().originGridX = currentGoChecker.GetComponent<Checker>().gridX;
+                            currentGoChecker.GetComponent<Checker>().originGridY = currentGoChecker.GetComponent<Checker>().gridY;
+                            currentGoChecker.GetComponent<Transform>().position = new Vector3(
+                                currentGoChecker.GetComponent<Transform>().position.x,
+                                currentGoChecker.GetComponent<Transform>().position.y + 1f,
+                                currentGoChecker.GetComponent<Transform>().position.z);
 
                             return;
                         }
@@ -313,19 +288,17 @@ public class Player : NetworkBehaviour
             //Now check if there are any jumps available to the checkers
             if (checkersCanJump > 0)
             {
-                foreach (GameObject goTile in tiles)
+                for (j = 0; j < 64; j++)
                 {
-                    var tile = goTile.GetComponent<Tile>();
-
                     //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                     //without ending their turn (handled in set piece down).
-                    if (tile.gridX == currentTile.gridX && tile.gridY == currentTile.gridY)
+                    if (tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX && tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY)
                     {
-                        tile.valid = true;
+                        tiles[j].GetComponent<Tile>().valid = true;
                     }
                     else
                     {
-                        tile.valid = false;
+                        tiles[j].GetComponent<Tile>().valid = false;
                     }
                 }
             }
@@ -333,31 +306,35 @@ public class Player : NetworkBehaviour
             //If no pieces can jump, map the currentChecker's potential moves
             else
             {
-                foreach (GameObject goTile in tiles)
+                for (j = 0; j < 64; j++)
                 {
-                    var tile = goTile.GetComponent<Tile>();
-
                     //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                     //without ending their turn (handled in set piece down).Also set empty diagnols to valid
-                    if ((tile.gridX == currentTile.gridX && tile.gridY == currentTile.gridY) ||
-                        ((tile.gridX == currentTile.gridX + 1 * cF) || (tile.gridX == currentTile.gridX - 1 * cF)) &&
-                        (tile.gridY== currentTile.gridY + 1 * cF) &&
-                        (tile.blackChecker == false && tile.redChecker == false))
+                    if ((tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX && tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY) ||
+                        ((tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX + 1 * cF) || (tiles[j].GetComponent<Tile>().gridX == currentGoTile.GetComponent<Tile>().gridX - 1 * cF)) &&
+                        (tiles[j].GetComponent<Tile>().gridY == currentGoTile.GetComponent<Tile>().gridY + 1 * cF))
                     {
-                        tile.valid = true;
+                        bool invalid;
+                        if (Checker.GetChecker(checkers, tiles[j].GetComponent<Tile>().gridX, tiles[j].GetComponent<Tile>().gridY, out invalid) != null)
+                            tiles[j].GetComponent<Tile>().valid = false;
+                        else
+                            tiles[j].GetComponent<Tile>().valid = true;
                     }
                     else
                     {
-                        tile.valid = false;
+                        tiles[j].GetComponent<Tile>().valid = false;
                     }
                 }
             }
 
             //Set the checker's origin position and pick it up
-            currentChecker.originPos = currentGoChecker.GetComponent<Transform>().position;
-            currentChecker.originGridX = currentChecker.gridX;
-            currentChecker.originGridY = currentChecker.gridY;
-            currentGoChecker.GetComponent<Transform>().Translate(0f, 1f, 0f, Space.World);
+            currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
+            currentGoChecker.GetComponent<Checker>().originGridX = currentGoChecker.GetComponent<Checker>().gridX;
+            currentGoChecker.GetComponent<Checker>().originGridY = currentGoChecker.GetComponent<Checker>().gridY;
+            currentGoChecker.GetComponent<Transform>().position = new Vector3(
+                currentGoChecker.GetComponent<Transform>().position.x,
+                currentGoChecker.GetComponent<Transform>().position.y + 1f,
+                currentGoChecker.GetComponent<Transform>().position.z);
 
             return;
         }
@@ -366,7 +343,7 @@ public class Player : NetworkBehaviour
     [ClientRpc] //Moves a checker, handling all checker/tile modifications and game logic; keeps the server-to-client objects synced
     public void RpcMovePiece()
     {
-        RaycastHit[] hits = Physics.RaycastAll(Camera.main.ScreenPointToRay(Input.GetTouch(0).position));
+        RaycastHit[] hits = Physics.RaycastAll(Camera.main.ScreenPointToRay(touch.position));
 
         foreach (var hit in hits)
         {
@@ -379,7 +356,7 @@ public class Player : NetworkBehaviour
 
                 //***Make any adjustments to the old tile above this***
 
-                //Release the LPA over the previous tile and obtain LPA over the new tile
+                    //Release the LPA over the previous tile and obtain LPA over the new tile
                 CmdRemoveObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
                 currentGoTile = hit.collider.gameObject;
                 CmdAssignObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
@@ -418,36 +395,139 @@ public class Player : NetworkBehaviour
     [ClientRpc] //Puts down a checker, performing any reset logic; keeps the server-to-client objects synced
     public void RpcPutPieceDown()
     {
-        var currentChecker = currentGoChecker.GetComponent<Checker>();
+        var x = isServer;
+        var y = isClient;
+        var z = isLocalPlayer;
+        bool invChecker;
+        var checkers = GameObject.FindGameObjectsWithTag("Checker");
 
         //Put down the checker if the position is valid, otherwise snap back to original position
         if (currentGoTile.GetComponent<Tile>().valid == false)
         {
-            currentGoChecker.GetComponent<Transform>().position = currentChecker.originPos;
-            currentChecker.gridX = currentChecker.originGridX;
-            currentChecker.gridY = currentChecker.originGridY;
+            currentGoChecker.GetComponent<Transform>().position = currentGoChecker.GetComponent<Checker>().originPos;
+            currentGoChecker.GetComponent<Checker>().gridX = currentGoChecker.GetComponent<Checker>().originGridX;
+            currentGoChecker.GetComponent<Checker>().gridY = currentGoChecker.GetComponent<Checker>().originGridY;
         }
         else
         {
             //Set it down
-            currentGoChecker.GetComponent<Transform>().Translate(0f, -1f, 0f, Space.World);
+            currentGoChecker.GetComponent<Transform>().position = new Vector3(
+                currentGoChecker.GetComponent<Transform>().position.x,
+                currentGoChecker.GetComponent<Transform>().position.y - 1f,
+                currentGoChecker.GetComponent<Transform>().position.z);
+
+            //Delete
+            if (currentGoChecker.GetComponent<Checker>().gridX == currentGoChecker.GetComponent<Checker>().originGridX + 2)
+            {
+                if (currentGoChecker.GetComponent<Checker>().gridY == currentGoChecker.GetComponent<Checker>().originGridY + 2)
+                {
+                    Checker deleteChecker = Checker.GetChecker(checkers, currentGoChecker.GetComponent<Checker>().originGridX + 1,
+                        currentGoChecker.GetComponent<Checker>().originGridY + 1, out invChecker);
+                    Destroy(deleteChecker);
+                    enemypieces = enemypieces - 1;
+                }
+            }
+
+            if (currentGoChecker.GetComponent<Checker>().gridX == currentGoChecker.GetComponent<Checker>().originGridX + 2)
+            {
+                if (currentGoChecker.GetComponent<Checker>().gridY == currentGoChecker.GetComponent<Checker>().originGridY - 2)
+                {
+                    Checker deleteChecker = Checker.GetChecker(checkers, currentGoChecker.GetComponent<Checker>().originGridX + 1,
+                        currentGoChecker.GetComponent<Checker>().originGridY - 1, out invChecker);
+                    Destroy(deleteChecker);
+                    enemypieces = enemypieces - 1;
+                }
+            }
+
+            if (currentGoChecker.GetComponent<Checker>().gridX == currentGoChecker.GetComponent<Checker>().originGridX - 2)
+            {
+                if (currentGoChecker.GetComponent<Checker>().gridY == currentGoChecker.GetComponent<Checker>().originGridY - 2)
+                {
+                    Checker deleteChecker = Checker.GetChecker(checkers, currentGoChecker.GetComponent<Checker>().originGridX - 1,
+                        currentGoChecker.GetComponent<Checker>().originGridY - 1, out invChecker);
+                    Destroy(deleteChecker);
+                    enemypieces = enemypieces - 1;
+                }
+            }
+
+            if (currentGoChecker.GetComponent<Checker>().gridX == currentGoChecker.GetComponent<Checker>().originGridX - 2)
+            {
+                if (currentGoChecker.GetComponent<Checker>().gridY == currentGoChecker.GetComponent<Checker>().originGridY + 2)
+                {
+                    Checker deleteChecker = Checker.GetChecker(checkers, currentGoChecker.GetComponent<Checker>().originGridX - 1,
+                        currentGoChecker.GetComponent<Checker>().originGridY + 1, out invChecker);
+                    Destroy(deleteChecker);
+                    enemypieces = enemypieces - 1;
+                }
+            }
 
             //Set the end turn flag if they've moved to a new position (not origin)
-            if (currentChecker.gridX != currentChecker.originGridX ||
-                currentChecker.gridY != currentChecker.originGridY)
+            if (currentGoChecker.GetComponent<Checker>().gridX != currentGoChecker.GetComponent<Checker>().originGridX ||
+                currentGoChecker.GetComponent<Checker>().gridY != currentGoChecker.GetComponent<Checker>().originGridY)
             {
-                GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().turn =
-                    !GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().turn;
+                CmdAssignObjectAuthority(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<NetworkIdentity>().netId);
+                GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn =
+                    !(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn);
+                CmdRemoveObjectAuthority(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<NetworkIdentity>().netId);
             }
 
             //Update the new origin information
-            currentChecker.originPos = currentGoChecker.GetComponent<Transform>().position;
-            currentChecker.originGridX = currentChecker.gridX;
-            currentChecker.originGridY = currentChecker.gridY;
+            currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
+            currentGoChecker.GetComponent<Checker>().originGridX = currentGoChecker.GetComponent<Checker>().gridX;
+            currentGoChecker.GetComponent<Checker>().originGridY = currentGoChecker.GetComponent<Checker>().gridY;
         }
 
         //Reset the highlight of the previous tile
         currentGoTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0f, 0f));
         currentGoTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
+    }
+
+    [ClientRpc] //Switches scene to lobby, keeps client's and server's scenes synced
+    public void RpcEndGame()
+    {
+        SceneManager.LoadScene("lobby");
+    }
+
+    public void Initialization()
+    {
+        var chessboard = GameObject.FindGameObjectWithTag("Chessboard");
+        var checkers = GameObject.FindGameObjectsWithTag("Checker");
+        var lighting = GameObject.FindGameObjectWithTag("Lighting");
+        var oldTiles = GameObject.FindGameObjectsWithTag("OldTile");
+        var newTiles = GameObject.FindGameObjectsWithTag("Tile");
+        var imageTraget = GameObject.Find("ImageTarget").GetComponent<Transform>();
+        int i;
+
+        //Erase the original reference tiles in the chessboard and set the networked ones to be children of the image target
+        for (i = 0; i < 64; i++)
+        {
+            Destroy(oldTiles[i]);
+            newTiles[i].GetComponent<Transform>().parent = imageTraget;
+        }
+
+        //Destroy the placeholder chessboard reference
+        Destroy(GameObject.Find("ChessboardReference"));
+
+        //Initialize the player's identity
+        isHostPlayer = true;
+        var x = isServer;
+        var y = isClient;
+        var z = isLocalPlayer;
+        if(isServer && isClient)
+            isHostPlayer = true;
+        else
+            isHostPlayer = false;
+        //This will be true only for the joining player, not the host
+        if (chessboard.GetComponent<Transform>().parent == null)
+        {
+            //Set parents to image target
+            chessboard.GetComponent<Transform>().parent = imageTraget;
+            foreach (var checker in checkers)
+                checker.GetComponent<Transform>().parent = imageTraget;
+            lighting.GetComponent<Transform>().parent = imageTraget;
+
+            //Adjust frame scale
+            chessboard.GetComponent<Transform>().localScale *= 10;
+        }
     }
 }

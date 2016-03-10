@@ -11,10 +11,6 @@ public class Tile : NetworkBehaviour
     public bool white;
     [SyncVar] //True if the tile is a valid position to move to; includes tile color, checkerAbove value, and game rules checking
     public bool valid;
-    [SyncVar] //True if the checker above the tile is red, false otherwise
-    public bool redChecker;
-    [SyncVar] //True if the checker above the tile is black, false otherwise
-    public bool blackChecker;
 
     //Called when the client connects to the server, after its SyncVars have been initialized
     public override void OnStartClient()
