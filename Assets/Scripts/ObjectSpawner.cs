@@ -8,10 +8,13 @@ public class ObjectSpawner : NetworkBehaviour
     public GameObject tilePrefab;
     public GameObject checkerPrefab;
 
+    public static bool hostPlayer;
+
     //Called when the server is first initialized by the host
     public override void OnStartServer()
     {
         var goImageTarget = GameObject.Find("ImageTarget");
+        hostPlayer = true;
         int x, y;
 
         //Spawn the lighting above the board

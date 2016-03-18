@@ -1,0 +1,15 @@
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\Assembly-CSharp.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\Assembly-CSharp.pdb
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\Qualcomm.Vuforia.UnityExtensions.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEditor.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.Networking.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.UI.dll
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.xml
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.UI.xml
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEngine.Networking.xml
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\UnityEditor.xml
+D:\Code\Repos\boARd\Temp\UnityVS_bin\Debug\Qualcomm.Vuforia.UnityExtensions.xml
+D:\Code\Repos\boARd\Temp\UnityVS_obj\Debug\boARd.CSharp.csprojResolveAssemblyReference.cache
+D:\Code\Repos\boARd\Temp\UnityVS_obj\Debug\Assembly-CSharp.dll
+D:\Code\Repos\boARd\Temp\UnityVS_obj\Debug\Assembly-CSharp.pdb

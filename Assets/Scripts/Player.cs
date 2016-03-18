@@ -5,14 +5,16 @@ using UnityEngine.SceneManagement;
 public class Player : NetworkBehaviour
 {
     [SyncVar] //Checker game object that the player is currently touching/dragging
-    private GameObject currentGoChecker;
+    public GameObject currentGoChecker;
     [SyncVar] //Tile game object that the current checker is sitting/floating on
-    private GameObject currentGoTile;
+    public GameObject currentGoTile;
+    [SyncVar]
+    public GameObject currentGoChessboard;
+    [SyncVar]
+    public bool switchTurns;
 
-    private int enemypieces = 12;
+    public int enemypieces = 12;
     public bool isHostPlayer;
-    public Touch touch;
-
     public const float _dragSpeedFactor = 0.09f;
 
     //Called when the scene begins; all objects have at this point spawned into the player's client instance
@@ -22,17 +24,38 @@ public class Player : NetworkBehaviour
             return;
 
         Initialization();
-    }
 
-    //Handle any object initialization that either can't be done by the object's OnStartClient method or is relative to the local player
+        switchTurns = false;
+        if(ObjectSpawner.hostPlayer == true)
+        {
+            isHostPlayer = true;
+            ObjectSpawner.hostPlayer = false;
+        }
+        else
+        {
+            isHostPlayer = false;
+        }
+    }
 
     //Called each frame of the game
     void Update()
     {
         if (!isLocalPlayer)
             return;
+
         if (enemypieces <= 0)
             CmdEndGame();
+
+        if (switchTurns == true)
+        {
+            currentGoChessboard = GameObject.FindGameObjectWithTag("Chessboard");
+            CmdAssignObjectAuthority(currentGoChessboard.GetComponent<NetworkIdentity>().netId);
+            CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
+            CmdSwitchTurns();
+            CmdRemoveObjectAuthority(currentGoChessboard.GetComponent<NetworkIdentity>().netId);
+            CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
+            return;
+        }
 
         var isHostTurn = GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn;
 
@@ -45,12 +68,11 @@ public class Player : NetworkBehaviour
         //When one finger touches the screen...
         if (Input.touchCount == 1)
         {
-            touch = Input.GetTouch(0);
-            switch (touch.phase)
+            switch (Input.GetTouch(0).phase)
             {
                 case TouchPhase.Began:
                     //If the touch begins on a checker, set the current checker and tile and pick up the checker
-                    if (Physics.Raycast(Camera.main.ScreenPointToRay(touch.position), out hit) && hit.transform.tag.Equals("Checker"))
+                    if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.GetTouch(0).position), out hit) && hit.transform.tag.Equals("Checker"))
                     {
                         //Assign currentChecker to the checker that was hit and obtain local player authority (LPA) over it
                         currentGoChecker = hit.transform.gameObject;
@@ -60,7 +82,9 @@ public class Player : NetworkBehaviour
                             //Assign currentTile to the tile below the checker and obtain local player authority (LPA) over it
                             currentGoTile = hit.collider.gameObject;
                             CmdAssignObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
-                            CmdPickPieceUp();
+                            CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
+                            PickPieceUp();
+                            CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
                         }
                         else
                             currentGoTile = null;
@@ -72,16 +96,18 @@ public class Player : NetworkBehaviour
                     //If a checker is currently being touched, move it and handle all necessary gameplay logic
                     if (currentGoChecker != null && currentGoTile != null && hasAuthority == true)
                     {
-                        CmdMovePiece();
+                        MovePiece(Input.GetTouch(0).position);
+                        CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
                     }
                     break;
                 case TouchPhase.Ended:
                     //If a checker was being touched and has now been let go, put it back down on the board and release LPA over the checker and tile
                     if (currentGoChecker != null && currentGoTile != null && hasAuthority == true)
                     {
-                        CmdPutPieceDown();
+                        PutPieceDown();
                         CmdRemoveObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
                         CmdRemoveObjectAuthority(currentGoChecker.GetComponent<NetworkIdentity>().netId);
+                        CmdUpdatePiece(currentGoChecker, currentGoTile, currentGoChessboard);
                     }
                     break;
             }
@@ -100,32 +126,17 @@ public class Player : NetworkBehaviour
         NetworkServer.objects[netId].RemoveClientAuthority(connectionToClient);
     }
 
-    [Command] //Routes an rpc call to pick up a checker piece; keeps the player objects on the clients and server synced
-    public void CmdPickPieceUp()
+    [Command] //Routes an rpc call to update the piece on the client; keeps the player objects on the clients and server synced
+    public void CmdUpdatePiece(GameObject goChecker, GameObject goTile, GameObject goChessboard)
     {
-        RpcPickPieceUp();
+        //RpcUpdatePiece();
+        currentGoChecker = goChecker;
+        currentGoTile = goTile;
+        currentGoChessboard = goChessboard;
     }
 
-    [Command] //Routes an rpc call to move a checker piece; keeps the player objects on the clients and server synced
-    public void CmdMovePiece()
-    {
-        RpcMovePiece();
-    }
-
-    [Command] //Routes an rpc call to put down a checker piece; keeps the client-to-server player objects synced
-    public void CmdPutPieceDown()
-    {
-        RpcPutPieceDown();
-    }
-
-    [Command] //Routes an rpc call to change scene to lobby; keeps client and server scenes synced
-    public void CmdEndGame()
-    {
-        RpcEndGame();
-    }
-
-    [ClientRpc] //Picks up a checker, performing any initialization logic; keeps the server-to-client objects synced
-    public void RpcPickPieceUp()
+    //[Command] //Routes an rpc call to pick up a checker piece; keeps the player objects on the clients and server synced
+    public void PickPieceUp()
     {
         var tiles = GameObject.FindGameObjectsWithTag("Tile");
         var checkers = GameObject.FindGameObjectsWithTag("Checker");
@@ -147,7 +158,7 @@ public class Player : NetworkBehaviour
         if ((isHostPlayer == true && currentGoChecker.GetComponent<Checker>().red == false) || (isHostPlayer == false && currentGoChecker.GetComponent<Checker>().red == true))
         {
             //Handle mapping the valid tiles when hopping another piece
-            for(i = 0; i < 24; i++)
+            for (i = 0; i < 24; i++)
             {
                 bool invLeft, invRight;
 
@@ -172,7 +183,7 @@ public class Player : NetworkBehaviour
                         //If true, we can immediately set the valid moves map for this piece and return
                         if (checkers[i] == currentGoChecker)
                         {
-                            for(j = 0; j < 64; j++)
+                            for (j = 0; j < 64; j++)
                             {
                                 //Set origin to valid, but don't make it a move, rather it allows them to put the piece down
                                 //without ending their turn (handled in set piece down). Also set the landing position to valid
@@ -340,10 +351,11 @@ public class Player : NetworkBehaviour
         }
     }
 
-    [ClientRpc] //Moves a checker, handling all checker/tile modifications and game logic; keeps the server-to-client objects synced
-    public void RpcMovePiece()
+    //[Command] //Routes an rpc call to move a checker piece; keeps the player objects on the clients and server synced
+    public void MovePiece(Vector2 pos)
     {
-        RaycastHit[] hits = Physics.RaycastAll(Camera.main.ScreenPointToRay(touch.position));
+        //RpcMovePiece(pos);
+        RaycastHit[] hits = Physics.RaycastAll(Camera.main.ScreenPointToRay(pos));
 
         foreach (var hit in hits)
         {
@@ -356,7 +368,7 @@ public class Player : NetworkBehaviour
 
                 //***Make any adjustments to the old tile above this***
 
-                    //Release the LPA over the previous tile and obtain LPA over the new tile
+                //Release the LPA over the previous tile and obtain LPA over the new tile
                 CmdRemoveObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
                 currentGoTile = hit.collider.gameObject;
                 CmdAssignObjectAuthority(currentGoTile.GetComponent<NetworkIdentity>().netId);
@@ -392,12 +404,10 @@ public class Player : NetworkBehaviour
         }
     }
 
-    [ClientRpc] //Puts down a checker, performing any reset logic; keeps the server-to-client objects synced
-    public void RpcPutPieceDown()
+    //[Command] //Routes an rpc call to put down a checker piece; keeps the client-to-server player objects synced
+    public void PutPieceDown()
     {
-        var x = isServer;
-        var y = isClient;
-        var z = isLocalPlayer;
+        //RpcPutPieceDown();
         bool invChecker;
         var checkers = GameObject.FindGameObjectsWithTag("Checker");
 
@@ -465,11 +475,10 @@ public class Player : NetworkBehaviour
             if (currentGoChecker.GetComponent<Checker>().gridX != currentGoChecker.GetComponent<Checker>().originGridX ||
                 currentGoChecker.GetComponent<Checker>().gridY != currentGoChecker.GetComponent<Checker>().originGridY)
             {
-                CmdAssignObjectAuthority(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<NetworkIdentity>().netId);
-                GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn =
-                    !(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<Chessboard>().isHostTurn);
-                CmdRemoveObjectAuthority(GameObject.FindGameObjectWithTag("Chessboard").GetComponent<NetworkIdentity>().netId);
+                switchTurns = true;
             }
+            else
+                switchTurns = false;
 
             //Update the new origin information
             currentGoChecker.GetComponent<Checker>().originPos = currentGoChecker.GetComponent<Transform>().position;
@@ -480,6 +489,28 @@ public class Player : NetworkBehaviour
         //Reset the highlight of the previous tile
         currentGoTile.GetComponent<MeshRenderer>().material.SetColor("_EmissionColor", new Color(0f, 0f, 0f));
         currentGoTile.GetComponent<MeshRenderer>().material.DisableKeyword("_EMISSION");
+    }
+
+    [Command] //Routes an rpc call to switch the player turn; keeps client and server scenes synced
+    public void CmdSwitchTurns()
+    {
+        //RpcSwitchTurns();
+        currentGoChessboard.GetComponent<Chessboard>().isHostTurn = !(currentGoChessboard.GetComponent<Chessboard>().isHostTurn);
+        switchTurns = false;
+    }
+
+    [Command] //Routes an rpc call to change scene to lobby; keeps client and server scenes synced
+    public void CmdEndGame()
+    {
+        //RpcEndGame();
+        SceneManager.LoadScene("lobby");
+    }
+
+    [ClientRpc]
+    public void RpcSwitchTurns()
+    {
+        currentGoChessboard.GetComponent<Chessboard>().isHostTurn = !(currentGoChessboard.GetComponent<Chessboard>().isHostTurn);
+        switchTurns = false;
     }
 
     [ClientRpc] //Switches scene to lobby, keeps client's and server's scenes synced
@@ -508,15 +539,6 @@ public class Player : NetworkBehaviour
         //Destroy the placeholder chessboard reference
         Destroy(GameObject.Find("ChessboardReference"));
 
-        //Initialize the player's identity
-        isHostPlayer = true;
-        var x = isServer;
-        var y = isClient;
-        var z = isLocalPlayer;
-        if(isServer && isClient)
-            isHostPlayer = true;
-        else
-            isHostPlayer = false;
         //This will be true only for the joining player, not the host
         if (chessboard.GetComponent<Transform>().parent == null)
         {
